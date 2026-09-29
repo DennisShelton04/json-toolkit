@@ -18,6 +18,14 @@ PR ─▶ CI: format ▸ typecheck ▸ tests + coverage gate ▸ build ▸ npm a
 tag vX.Y.Z ─▶ Deploy: test ▸ build ▸ upload ▸ GitHub Pages
 ```
 
+**Live URL:** https://dennisshelton04.github.io/json-toolkit/
+
+**One-time GitHub setup** (already done for this repo):
+
+- Settings → Pages → Source: **GitHub Actions**
+- Settings → Environments → `github-pages` → Deployment branches and tags: add tag rule `v*`
+  (by default only `main` may deploy, so tag-triggered deploys are rejected without it)
+
 ## Release Procedure
 
 1. Update `CHANGELOG.md` and bump the version: `npm version minor` (creates tag `vX.Y.Z`).
