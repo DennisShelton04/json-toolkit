@@ -45,13 +45,19 @@ jobs:
       - name: Smoke test
         run: |
           docker run -d --name app -p 8080:8080 json-toolkit:ci
-          for i in $(seq 1 20); do curl -fs http://localhost:8080/ >/dev/null && break; sleep 1; done
-          curl -fsI http://localhost:8080/ | tee headers.txt
-          grep -qi '^x-content-type-options: nosniff' headers.txt
-          grep -qi '^cache-control: no-cache' headers.txt
-          curl -fs http://localhost:8080/ | grep -q '<title>JSON Toolkit</title>'
+          for i in $(seq 1 20); do curl -fs -o /dev/null http://localhost:8080/ && break; sleep 1; done
+
+          check() { # usage: check <description> <url> <grep-pattern>
+            if curl -fsSI "$2" | tr -d '\r' | grep -qiE "$3"; then echo "PASS  $1"; else echo "FAIL  $1"; curl -sSI "$2" | cat -v; exit 1; fi
+          }
+          check "security headers on /"        http://localhost:8080/            '^x-content-type-options: nosniff'
+          check "index.html is not cached"     http://localhost:8080/            '^cache-control: no-cache'
           asset=$(curl -fs http://localhost:8080/ | grep -o 'assets/index-[^"]*\.js' | head -1)
-          curl -fsI "http://localhost:8080/$asset" | grep -qi 'immutable'
-          curl -fs http://localhost:8080/some/deep/link | grep -q '<title>JSON Toolkit</title>'
-      - if: always()
-        run: docker logs app || true
+          check "hashed assets are immutable"  "http://localhost:8080/$asset"    '^cache-control: .*immutable'
+          check "security headers on assets"   "http://localhost:8080/$asset"    '^x-frame-options: deny'
+          curl -fs http://localhost:8080/some/deep/link | grep -q '<title>JSON Toolkit</title>' && echo "PASS  SPA fallback"
+      - if: failure()
+        name: Diagnostics
+        run: |
+          docker exec app nginx -T || true
+          docker logs app || true
